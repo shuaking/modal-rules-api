@@ -15,16 +15,6 @@ image = (
 # 规则文件存储卷（持久化）
 rules_volume = modal.Volume.from_name("ai-rules", create_if_missing=True)
 
-# API 响应模型
-from pydantic import BaseModel
-from typing import Optional
-
-class RuleResponse(BaseModel):
-    rule_type: str
-    content: str
-    version: Optional[str]
-    last_updated: Optional[str]
-
 @app.function(
     image=image,
     volumes={"/rules": rules_volume},
@@ -35,7 +25,16 @@ def web():
     """FastAPI Web 应用"""
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import PlainTextResponse
+    from pydantic import BaseModel
+    from typing import Optional
     import json
+    
+    # API 响应模型
+    class RuleResponse(BaseModel):
+        rule_type: str
+        content: str
+        version: Optional[str]
+        last_updated: Optional[str]
     
     api = FastAPI(title="AI Rules API", version="1.0")
     
