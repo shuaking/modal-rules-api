@@ -51,7 +51,7 @@ modal volume create ai-rules
 
 ```bash
 # 上传所有规则文件到 Modal 卷
-modal put ai-rules:./rules/ rules/*.md
+modal volume put ai-rules rules/ /
 ```
 
 ### 5. 部署应用
@@ -69,10 +69,7 @@ modal deploy app.py
 ✓ Created objects:
 - App: ai-rules-api
 - Function: web
-- Snapshot: fs-snapshot-xxx
-- Workspace: your-username--ai-rules-api
-
-✓ App deployed! URL: https://your-username--ai-rules-api.modal.run
+- URL: https://your-username--ai-rules-api-web.modal.run
 ```
 
 ### 6. 验证部署
@@ -162,7 +159,7 @@ last_updated: 2024-01-15
 ### 2. 上传到 Modal
 
 ```bash
-modal put ai-rules:./rules/ rules/mobile-dev.md
+modal volume put ai-rules rules/ /
 ```
 
 ### 3. 重新部署（可选，热加载支持）
@@ -170,21 +167,20 @@ modal put ai-rules:./rules/ rules/mobile-dev.md
 规则文件存储在独立 Volume，修改后自动生效，无需重新部署应用：
 
 ```bash
-# 直接更新文件即可
-modal put ai-rules:./rules/ rules/mobile-dev.md
+# 直接更新目录即可
+modal volume put -f ai-rules rules/ /
 ```
 
-## 🔄 自动化更新（GitHub Actions）
+## 🔄 自动化更新 (GitHub Actions)
 
-创建 `.github/workflows/deploy-rules.yml`：
+项目已内置 `.github/workflows/update-rules.yml`：
 
 ```yaml
-name: Deploy AI Rules
-
+name: Update AI Rules
 on:
   push:
     branches: [main]
-    paths: ['rules/**']
+    paths: ['rules/**', 'app.py']
 
 jobs:
   deploy:
@@ -194,13 +190,17 @@ jobs:
       - name: Install Modal
         run: pip install modal
       - name: Set Modal token
-        run: modal token set --token ${{ secrets.MODAL_TOKEN }}
+        run: modal token set --token-id ${{ secrets.MODAL_TOKEN_ID }} --token-secret ${{ secrets.MODAL_TOKEN_SECRET }}
       - name: Update rules volume
-        run: modal put ai-rules:./rules/ rules/*.md
-      - name: Deploy app (if app.py changed)
-        if: contains(github.event.head_commit.message, 'deploy')
+        run: modal volume put -f ai-rules rules/ /
+      - name: Deploy app
         run: modal deploy app.py
 ```
+
+### 配置 Secrets
+在 GitHub 仓库设置中添加：
+1. `MODAL_TOKEN_ID`
+2. `MODAL_TOKEN_SECRET`
 
 ## 🛠️ 本地开发
 
@@ -260,7 +260,7 @@ modal secret create ai-rules-api-api-key API_KEY=your-secret-key
     image=image,
     volumes={"/rules": rules_volume},
     secrets=[modal.Secret.from_name("ai-rules-api-api-key")],
-    keep_warm=1,
+    min_containers=1,
 )
 ```
 
