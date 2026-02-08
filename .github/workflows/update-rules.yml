@@ -2,11 +2,14 @@ name: Update AI Rules
 on:
   push:
     branches: [main]
-    paths: ['rules/**', 'app.py']
+    paths: ['rules/**', 'app.py', '.github/workflows/update-rules.yml']
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
     steps:
       - uses: actions/checkout@v3
 
@@ -18,13 +21,14 @@ jobs:
       - name: Install Modal
         run: pip install modal
 
-      - name: Set Modal token
-        run: modal token set --token-id ${{ secrets.MODAL_TOKEN_ID }} --token-secret ${{ secrets.MODAL_TOKEN_SECRET }}
-
       - name: Update Rules Volume
         run: |
-          # 强制覆盖上传 rules 目录下的所有 md 文件
-          modal volume put -f ai-rules rules/ /
+          # 遍历 rules 目录下的 md 文件并逐个上传到 Volume 根目录
+          for file in rules/*.md; do
+            filename=$(basename "$file")
+            echo "Uploading $file to /$filename..."
+            modal volume put -f ai-rules "$file" "/$filename"
+          done
 
       - name: Deploy App
         run: modal deploy app.py
