@@ -24,7 +24,7 @@ modal volume create ai-rules
 ### 步骤 4：上传规则（1 分钟）
 
 ```bash
-modal put ai-rules:./rules/ rules/*.md
+modal volume put ai-rules rules/ /
 ```
 
 ### 步骤 5：部署应用（1 分钟）
