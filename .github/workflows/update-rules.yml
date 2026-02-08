@@ -22,6 +22,9 @@ jobs:
       - name: Install Modal
         run: pip install modal
 
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
       - name: Update Rules Volume
         run: |
           # 遍历 rules 目录下的 md 文件并逐个上传到 Volume 根目录
