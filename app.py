@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime
 
 # 定义 Modal App
-app = modal.App("ai-rules-api")
+app = modal.App("ai-skills-api")
 
 # 定义容器镜像（最小化，只包含必要依赖）
 image = (
@@ -12,12 +12,12 @@ image = (
     .pip_install("fastapi", "uvicorn")
 )
 
-# 规则文件存储卷（持久化）
-rules_volume = modal.Volume.from_name("ai-rules", create_if_missing=True)
+# Skill 文件存储卷（持久化）
+skills_volume = modal.Volume.from_name("ai-skills", create_if_missing=True)
 
 @app.function(
     image=image,
-    volumes={"/rules": rules_volume},
+    volumes={"/skills": skills_volume},
     min_containers=1,  # 保持一个实例热启动，避免冷启动延迟
 )
 @modal.asgi_app()
@@ -30,13 +30,13 @@ def web():
     import json
     
     # API 响应模型
-    class RuleResponse(BaseModel):
-        rule_type: str
+    class SkillResponse(BaseModel):
+        skill_name: str
         content: str
         version: Optional[str]
         last_updated: Optional[str]
     
-    api = FastAPI(title="AI Rules API", version="1.0")
+    api = FastAPI(title="AI Skills API", version="1.0")
     
     # 添加 CORS 中间件
     from fastapi.middleware.cors import CORSMiddleware
@@ -51,14 +51,14 @@ def web():
     @api.get("/")
     async def root():
         return {
-            "message": "AI Rules API",
+            "message": "AI Skills API",
             "endpoints": [
-                "/rules/{type}",
-                "/rules",
-                "/rules/{type}/version",
+                "/skills/{name}",
+                "/skills",
+                "/skills/{name}/version",
                 "/health"
             ],
-            "usage": "curl https://your-app.modal.run/rules/dev-service"
+            "usage": "curl https://your-app.modal.run/skills/dev-service"
         }
     
     @api.get("/health")
@@ -66,36 +66,36 @@ def web():
         return {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
-            "rules_count": len(list(Path("/rules").glob("*.md")))
+            "skills_count": len(list(Path("/skills").glob("*.md")))
         }
     
-    @api.get("/rules/{rule_type}", response_class=PlainTextResponse)
-    async def get_rule(rule_type: str, request: Request):
-        """获取指定类型的规则文件"""
-        rule_file = f"/rules/{rule_type}.md"
+    @api.get("/skills/{skill_name}", response_class=PlainTextResponse)
+    async def get_skill(skill_name: str, request: Request):
+        """获取指定名称的 Skill 文件"""
+        skill_file = f"/skills/{skill_name}.md"
         
         # 检查文件是否存在
-        if not os.path.exists(rule_file):
+        if not os.path.exists(skill_file):
             raise HTTPException(
                 status_code=404,
-                detail=f"Rule '{rule_type}' not found. Available rules: {list_available_rules()}"
+                detail=f"Skill '{skill_name}' not found. Available skills: {list_available_skills()}"
             )
         
         # 读取文件内容
-        with open(rule_file, 'r', encoding='utf-8') as f:
+        with open(skill_file, 'r', encoding='utf-8') as f:
             content = f.read()
         
         return content
     
-    @api.get("/rules")
-    async def list_rules():
-        """列出所有可用规则"""
-        rules_dir = Path("/rules")
-        rule_files = []
+    @api.get("/skills")
+    async def list_skills():
+        """列出所有可用 Skill"""
+        skills_dir = Path("/skills")
+        skill_files = []
         
-        for f in rules_dir.glob("*.md"):
+        for f in skills_dir.glob("*.md"):
             if f.name != "README.md":
-                rule_type = f.stem
+                skill_name = f.stem
                 stat = f.stat()
                 # 尝试从文件头部提取版本信息
                 version = "unknown"
@@ -108,30 +108,30 @@ def web():
                 except:
                     pass
                 
-                rule_files.append({
-                    "type": rule_type,
-                    "path": f"/rules/{f.name}",
+                skill_files.append({
+                    "name": skill_name,
+                    "path": f"/skills/{f.name}",
                     "size": stat.st_size,
                     "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     "version": version
                 })
         
         return {
-            "rules": sorted(rule_files, key=lambda x: x["type"]),
-            "count": len(rule_files)
+            "skills": sorted(skill_files, key=lambda x: x["name"]),
+            "count": len(skill_files)
         }
     
-    @api.get("/rules/{rule_type}/version")
-    async def get_rule_version(rule_type: str):
-        """获取规则版本信息"""
-        rule_file = f"/rules/{rule_type}.md"
-        if not os.path.exists(rule_file):
-            raise HTTPException(status_code=404, detail=f"Rule '{rule_type}' not found")
+    @api.get("/skills/{skill_name}/version")
+    async def get_skill_version(skill_name: str):
+        """获取 Skill 版本信息"""
+        skill_file = f"/skills/{skill_name}.md"
+        if not os.path.exists(skill_file):
+            raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' not found")
         
         version = "unknown"
         last_updated = None
         try:
-            with open(rule_file, 'r', encoding='utf-8') as f:
+            with open(skill_file, 'r', encoding='utf-8') as f:
                 for line in f:
                     if line.lower().startswith("version:"):
                         version = line.split(":", 1)[1].strip()
@@ -141,16 +141,16 @@ def web():
             pass
         
         return {
-            "rule_type": rule_type,
+            "skill_name": skill_name,
             "version": version,
             "last_updated": last_updated,
-            "url": f"/rules/{rule_type}"
+            "url": f"/skills/{skill_name}"
         }
     
-    def list_available_rules():
-        """辅助函数：列出可用规则"""
-        rules_dir = Path("/rules")
-        return [f.stem for f in rules_dir.glob("*.md") if f.name != "README.md"]
+    def list_available_skills():
+        """辅助函数：列出可用 Skill"""
+        skills_dir = Path("/skills")
+        return [f.stem for f in skills_dir.glob("*.md") if f.name != "README.md"]
     
     return api
 
@@ -158,14 +158,14 @@ def web():
 @app.local_entrypoint()
 def main():
     """本地测试服务器"""
-    print("🚀 Starting local AI Rules API server...")
+    print("🚀 Starting local AI Skills API server...")
     print("📡 Server will be available at: http://localhost:8000")
     print("📋 Available endpoints:")
     print("   GET /              - API info")
     print("   GET /health        - Health check")
-    print("   GET /rules         - List all rules")
-    print("   GET /rules/{type}  - Get specific rule")
-    print("   GET /rules/{type}/version - Get rule version")
+    print("   GET /skills        - List all skills")
+    print("   GET /skills/{name} - Get specific skill")
+    print("   GET /skills/{name}/version - Get skill version")
     print("\nPress Ctrl+C to stop")
     
     import uvicorn

@@ -1,8 +1,8 @@
-name: Update AI Rules
+name: Update AI Skills
 on:
   push:
     branches: [main]
-    paths: ['rules/**', 'app.py', '.github/workflows/update-rules.yml']
+    paths: ['skills/**', 'app.py', '.github/workflows/update-skills.yml']
   workflow_dispatch:
 
 jobs:
@@ -25,13 +25,14 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
-      - name: Update Rules Volume
+      - name: Update Skills Volume
         run: |
-          # 遍历 rules 目录下的 md 文件并逐个上传到 Volume 根目录
-          for file in rules/*.md; do
+          # 遍历 skills 目录下的 md 文件并逐个上传到 Volume 根目录
+          # Volume name: ai-skills
+          for file in skills/*.md; do
             filename=$(basename "$file")
             echo "Uploading $file to /$filename..."
-            modal volume put -f ai-rules "$file" "/$filename"
+            modal volume put -f ai-skills "$file" "/$filename"
           done
 
       - name: Deploy App
