@@ -27,13 +27,12 @@ jobs:
 
       - name: Update Skills Volume
         run: |
-          # 遍历 skills 目录下的 md 文件并逐个上传到 Volume 根目录
-          # Volume name: ai-skills
-          for file in skills/*.md; do
-            filename=$(basename "$file")
-            echo "Uploading $file to /$filename..."
-            modal volume put -f ai-skills "$file" "/$filename"
-          done
+          # 确保 Volume 存在
+          modal volume create ai-skills || true
+          
+          # 直接上传整个 skills 目录到 Volume 根目录
+          # 这将保留所有子目录结构，例如 skills/python/expert.md -> /python/expert.md
+          modal volume put -f ai-skills skills/ /
 
       - name: Deploy App
         run: modal deploy app.py

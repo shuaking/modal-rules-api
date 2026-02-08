@@ -69,16 +69,20 @@ def web():
             "skills_count": len(list(Path("/skills").glob("*.md")))
         }
     
-    @api.get("/skills/{skill_name}", response_class=PlainTextResponse)
-    async def get_skill(skill_name: str, request: Request):
-        """获取指定名称的 Skill 文件"""
-        skill_file = f"/skills/{skill_name}.md"
+    @api.get("/skills/{skill_path:path}", response_class=PlainTextResponse)
+    async def get_skill(skill_path: str, request: Request):
+        """获取指定路径的 Skill 文件，支持子目录（如 'python/expert'）"""
+        # 如果请求的是不带扩展名的路径，尝试添加 .md
+        if not skill_path.endswith(".md"):
+            skill_path += ".md"
+            
+        skill_file = f"/skills/{skill_path}"
         
         # 检查文件是否存在
         if not os.path.exists(skill_file):
             raise HTTPException(
                 status_code=404,
-                detail=f"Skill '{skill_name}' not found. Available skills: {list_available_skills()}"
+                detail=f"Skill '{skill_path}' not found."
             )
         
         # 读取文件内容
@@ -89,15 +93,18 @@ def web():
     
     @api.get("/skills")
     async def list_skills():
-        """列出所有可用 Skill"""
+        """递归列出所有可用 Skill"""
         skills_dir = Path("/skills")
         skill_files = []
         
-        for f in skills_dir.glob("*.md"):
+        # 递归遍历所有 .md 文件
+        for f in skills_dir.rglob("*.md"):
             if f.name != "README.md":
-                skill_name = f.stem
+                # 获取相对路径作为 skill 名称，例如 "python/expert"
+                rel_path = f.relative_to(skills_dir)
+                skill_name = str(rel_path.with_suffix("")).replace("\\", "/") # 统一使用正斜杠
+                
                 stat = f.stat()
-                # 尝试从文件头部提取版本信息
                 version = "unknown"
                 try:
                     with open(f, 'r', encoding='utf-8') as rf:
@@ -110,7 +117,8 @@ def web():
                 
                 skill_files.append({
                     "name": skill_name,
-                    "path": f"/skills/{f.name}",
+                    "path": f"/skills/{skill_name}",
+                    "category": rel_path.parent.name if rel_path.parent.name else "root",
                     "size": stat.st_size,
                     "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
                     "version": version
@@ -121,12 +129,16 @@ def web():
             "count": len(skill_files)
         }
     
-    @api.get("/skills/{skill_name}/version")
-    async def get_skill_version(skill_name: str):
+    @api.get("/skills/{skill_path:path}/version")
+    async def get_skill_version(skill_path: str):
         """获取 Skill 版本信息"""
-        skill_file = f"/skills/{skill_name}.md"
+        if not skill_path.endswith(".md"):
+            skill_path += ".md"
+            
+        skill_file = f"/skills/{skill_path}"
+        
         if not os.path.exists(skill_file):
-            raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' not found")
+            raise HTTPException(status_code=404, detail=f"Skill '{skill_path}' not found")
         
         version = "unknown"
         last_updated = None
@@ -140,11 +152,14 @@ def web():
         except:
             pass
         
+        # 移除 .md 后缀用于返回 clean name
+        clean_name = skill_path[:-3] if skill_path.endswith(".md") else skill_path
+        
         return {
-            "skill_name": skill_name,
+            "skill_name": clean_name,
             "version": version,
             "last_updated": last_updated,
-            "url": f"/skills/{skill_name}"
+            "url": f"/skills/{clean_name}"
         }
     
     def list_available_skills():
