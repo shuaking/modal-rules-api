@@ -38,6 +38,16 @@ def web():
     
     api = FastAPI(title="AI Rules API", version="1.0")
     
+    # 添加 CORS 中间件
+    from fastapi.middleware.cors import CORSMiddleware
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # 允许所有来源
+        allow_credentials=True,
+        allow_methods=["*"],  # 允许所有方法
+        allow_headers=["*"],  # 允许所有请求头
+    )
+    
     @api.get("/")
     async def root():
         return {
